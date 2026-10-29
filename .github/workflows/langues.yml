@@ -1,0 +1,55 @@
+name: Langues (FR / JP)
+
+on:
+  schedule:
+    - cron: '41 3 * * 1'   # chaque lundi vers 4 h 41 (heure de Paris en hiver)
+  push:
+    branches: [main]
+    paths: ['scripts/build-lang.mjs', 'scripts/fetch-prices.mjs', '.github/workflows/langues.yml']
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'Parties à reconstruire (pokemon-fr,pokemon-ja,onepiece-fr,onepiece-ja) — vide = toutes'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: prices
+  cancel-in-progress: false
+
+jobs:
+  lang:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Noms, images et cartes FR / JP
+        env:
+          ONLY: ${{ github.event.inputs.only }}
+        run: node scripts/build-lang.mjs
+      - name: Prix Pokémon (dont cartes japonaises)
+        env:
+          POKEMONTCG_API_KEY: ${{ secrets.POKEMONTCG_API_KEY }}
+          ONLY: pokemon
+        run: node scripts/fetch-prices.mjs
+      - name: Enregistrer
+        run: |
+          git config user.name "kirakai"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add db
+          if git diff --cached --quiet; then echo "Rien de nouveau"; exit 0; fi
+          git commit -m "Langues FR / JP du $(date -u +%F)"
+          git pull --rebase origin main
+          git push
+      - name: Republier le site
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${{ github.repository }}/pages/builds"

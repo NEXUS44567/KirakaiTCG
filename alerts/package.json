@@ -1,0 +1,9 @@
+{
+  "name": "kirakai-alertes",
+  "private": true,
+  "type": "module",
+  "description": "Robot des alertes de prix de Kirakai (notifications sur le téléphone)",
+  "dependencies": {
+    "web-push": "3.6.7"
+  }
+}

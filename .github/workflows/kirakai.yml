@@ -1,0 +1,54 @@
+name: Kirakai (pages des cartes et alertes)
+
+# Juste après chaque relevé des prix (et des noms FR / JP) :
+# 1. met à jour les pages des cartes et des extensions lues par Google (seo.mjs), si le catalogue a changé ;
+# 2. envoie les alertes de prix sur les téléphones abonnés (alerts/send.mjs), si la clé Supabase est configurée
+#    (secret du dépôt SUPABASE_SECRET_KEY : Settings → Secrets and variables → Actions).
+on:
+  workflow_run:
+    workflows: ['Relevé des prix', 'Langues (FR / JP)']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: prices
+  cancel-in-progress: false
+
+jobs:
+  kirakai:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_URL: https://rkuxozxrzqbdhxxvwpjf.supabase.co
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Pages des cartes et des extensions
+        run: node seo.mjs
+      - name: Enregistrer les pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "kirakai"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add carte extension sitemaps sitemap.xml
+          if git diff --cached --quiet; then echo "Pages déjà à jour"; exit 0; fi
+          git commit -m "Pages Kirakai à jour du catalogue ($(date -u +%F))"
+          git pull --rebase origin main
+          git push
+          gh api -X POST "repos/${{ github.repository }}/pages/builds" || true
+      - name: Alertes de prix sur les téléphones
+        if: env.SUPABASE_SECRET_KEY != ''
+        run: |
+          npm ci --prefix alerts --no-audit --no-fund
+          node alerts/send.mjs
