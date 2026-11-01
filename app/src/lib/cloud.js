@@ -70,14 +70,14 @@ function frMessage(j, status) {
 }
 
 // ---- Appels HTTP (Auth et base) ----
-async function call(path, { method = 'GET', body, token, prefer, keepalive } = {}) {
+async function call(path, { method = 'GET', body, token, prefer, keepalive, file, extra } = {}) {
   // Les clés « publishable » ne sont pas des jetons : seule une clé « anon » (JWT) peut aussi servir d'autorisation
-  const headers = { apikey: SUPABASE.key, 'Content-Type': 'application/json' };
+  const headers = { apikey: SUPABASE.key, 'Content-Type': file ? file.type : 'application/json', ...extra };
   if (token) headers.Authorization = 'Bearer ' + token;
   else if (/^eyJ/.test(SUPABASE.key)) headers.Authorization = 'Bearer ' + SUPABASE.key;
   if (prefer) headers.Prefer = prefer;
   let r;
-  try { r = await fetch(api(path), { method, headers, body: body === undefined ? undefined : JSON.stringify(body), keepalive }); }
+  try { r = await fetch(api(path), { method, headers, body: file || (body === undefined ? undefined : JSON.stringify(body)), keepalive }); }
   catch { throw new CloudError('Pas de connexion : vérifie ton réseau.', 'network', 0); }
   const text = await r.text();
   let j = null; try { j = text ? JSON.parse(text) : null; } catch {}
@@ -341,6 +341,7 @@ export async function signOut({ force } = {}) {
   forget();
 }
 export async function deleteAccount() {
+  await removeAvatar(getState().profile?.avatar).catch(() => {});
   await authed('/rest/v1/rpc/nexus_delete_account', { method: 'POST', body: {} });
   forget();
 }
@@ -363,6 +364,20 @@ export function publishProfile(row) {
   return authed('/rest/v1/nexus_public?on_conflict=user_id', { method: 'POST', prefer: 'resolution=merge-duplicates,return=minimal', body: { ...row, user_id: uid() } });
 }
 export const hideProfile = () => authed(`/rest/v1/nexus_public?user_id=eq.${uid()}`, { method: 'DELETE', prefer: 'return=minimal' });
+
+// ---- Photo de profil : un fichier par envoi dans le dossier du joueur (« avatars/<id>/<date>.webp », voir supabase/profil.sql) ----
+const AVATAR_RE = /^[0-9a-f-]{36}\/\d{10,14}\.(webp|jpg)$/;
+export const avatarUrl = (path) => (cloudOn() && typeof path === 'string' && AVATAR_RE.test(path) ? api('/storage/v1/object/public/avatars/' + path) : null);
+export async function uploadAvatar(blob) {
+  if (!uid()) throw new CloudError('Connecte-toi pour ajouter une photo.', 'no_session', 401);
+  const path = `${uid()}/${Date.now()}.${blob.type === 'image/webp' ? 'webp' : 'jpg'}`;
+  await authed('/storage/v1/object/avatars/' + path, { method: 'POST', file: blob, extra: { 'cache-control': 'max-age=31536000', 'x-upsert': 'true' } });
+  return path;
+}
+export async function removeAvatar(path) {
+  if (!uid() || typeof path !== 'string' || !path.startsWith(uid() + '/')) return;
+  await authed('/storage/v1/object/avatars', { method: 'DELETE', body: { prefixes: [path] } });
+}
 
 // ---- Liens reçus par e-mail (confirmation, mot de passe oublié) et retour des connexions Google, Discord… ----
 function readLink() {

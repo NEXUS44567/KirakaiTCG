@@ -9,7 +9,8 @@ fonctionne comme avant : tout reste dans le navigateur, et la page « Mon compte
 1. Crée un compte sur supabase.com, puis **New project** (nom : `Kirakai`, région : Europe, choisis un mot de passe de base de données et garde-le).
 2. Ouvre **SQL Editor → New query**, colle tout le contenu de [`supabase/comptes.sql`](supabase/comptes.sql) et clique sur **Run**.
    Fais pareil avec [`supabase/classement.sql`](supabase/classement.sql) (classement des boosters) et
-   [`supabase/social.sql`](supabase/social.sql) (profils publics et alertes sur le téléphone).
+   [`supabase/social.sql`](supabase/social.sql) (profils publics et alertes sur le téléphone), puis
+   [`supabase/profil.sql`](supabase/profil.sql) (photos de profil et cartes de membre personnalisées).
 
 ## 2. Régler la connexion
 

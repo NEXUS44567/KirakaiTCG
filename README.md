@@ -29,6 +29,8 @@ En plus dans Kirakai :
 - ce qui monte et ce qui baisse dans ma collection
 - quêtes du jour et série de jours de visite, récompensées en Berrys et en Pokéballs
 - profils publics avec vitrine de cartes et classement des plus belles collections (`#/collectionneurs`, `#/joueur/<pseudo>`)
+- photo de profil (cadrée sur le site, rangée dans Supabase Storage) et carte de membre personnalisable : couleur, motif,
+  finition, titre (certains à débloquer), carte fétiche, emblèmes
 - alertes de prix sur le téléphone, même site fermé (notifications envoyées par le robot `alerts/send.mjs` après le relevé)
 - une vraie page par carte et par extension pour Google (`seo.mjs` → `carte/`, `extension/`, `sitemap.xml`), qui démarre
   l'application sur la bonne carte ; les liens partagés affichent l'image et le nom de la carte

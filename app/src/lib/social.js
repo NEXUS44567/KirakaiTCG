@@ -4,7 +4,8 @@ import { getState, onStore, useStore } from './store.js';
 import { collectionValue } from './coll.js';
 import { eurOf, resolveKey, setCards } from './data.js';
 import { useData } from './hooks.js';
-import { useCloud, cloudOn, publishProfile, scoped } from './cloud.js';
+import { useCloud, cloudOn, publishProfile, scoped, avatarUrl } from './cloud.js';
+import { lookOf } from './look.js';
 
 const r2 = (x) => Math.round((x || 0) * 100) / 100;
 
@@ -33,7 +34,10 @@ export function showcaseOf(d, s = getState()) {
 
 export function profileRow(d, s = getState()) {
   const st = profileStats(d, s);
-  return { visible: true, value_op: st.per.onepiece.value, value_pk: st.per.pokemon.value, cards: st.per.onepiece.cards + st.per.pokemon.cards, stats: st, showcase: showcaseOf(d, s) };
+  return {
+    visible: true, value_op: st.per.onepiece.value, value_pk: st.per.pokemon.value, cards: st.per.onepiece.cards + st.per.pokemon.cards, stats: st, showcase: showcaseOf(d, s),
+    avatar: avatarUrl(s.profile?.avatar) ? s.profile.avatar : null, card: lookOf(s.profile?.card),
+  };
 }
 
 // Publication automatique (profil visible, joueur connecté) : au démarrage puis après chaque changement

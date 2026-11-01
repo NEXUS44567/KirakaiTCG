@@ -8,6 +8,7 @@ import { CardArt } from '../ui/Card.jsx';
 import { Seg, Loading, Empty } from '../ui/Kit.jsx';
 import { MemberCard } from './Account.jsx';
 import Icon from '../ui/Icon.jsx';
+import Avatar from '../ui/Avatar.jsx';
 
 // Collectionneurs : classement des plus belles collections et profils publics (chacun choisit d'être visible).
 
@@ -24,7 +25,7 @@ export function PlayersPage() {
   useEffect(() => {
     if (!cloudOn()) return;
     let ok = true; setRows(null); setErr('');
-    restGet(`/rest/v1/nexus_public?select=pseudo,value_op,value_pk,value_eur,cards,stats,updated_at&visible=eq.true&${col}=gt.0&order=${col}.desc,updated_at.asc&limit=100`)
+    restGet(`/rest/v1/nexus_public?select=pseudo,avatar,value_op,value_pk,value_eur,cards,stats,updated_at&visible=eq.true&${col}=gt.0&order=${col}.desc,updated_at.asc&limit=100`)
       .then((r) => ok && setRows(r || []), (e) => ok && setErr(e.message));
     return () => { ok = false; };
   }, [col]);
@@ -50,7 +51,7 @@ export function PlayersPage() {
               <div className="pl-podium">
                 {rows.slice(0, 3).map((r, i) => (
                   <a key={r.pseudo} href={profileHref(r.pseudo)} className={'pl-step s' + (i + 1)}>
-                    <span className="pl-av">{r.pseudo[0].toUpperCase()}</span>
+                    <Avatar className="pl-av" path={r.avatar} name={r.pseudo} />
                     <b>{r.pseudo}</b>
                     <em>{fmt(r)}</em>
                     <span className="pl-medal">{i + 1}</span>
@@ -61,7 +62,7 @@ export function PlayersPage() {
                 {rows.slice(3).map((r, i) => (
                   <li key={r.pseudo} className={r.pseudo === me ? 'me' : ''}>
                     <span className="pl-rank">{i + 4}</span>
-                    <a href={profileHref(r.pseudo)} className="pl-name"><span className="pl-av small">{r.pseudo[0].toUpperCase()}</span>{r.pseudo}{r.pseudo === me && <em>(toi)</em>}</a>
+                    <a href={profileHref(r.pseudo)} className="pl-name"><Avatar className="pl-av small" path={r.avatar} name={r.pseudo} />{r.pseudo}{r.pseudo === me && <em>(toi)</em>}</a>
                     <span className="pl-sub hide-xs">{fmtNum(r.cards)} cartes · {r.stats?.ach || 0} succès</span>
                     <b>{fmt(r)}</b>
                   </li>
@@ -103,7 +104,7 @@ export function PlayerPage({ pseudo }) {
       <div className="kicker">Collectionneur</div>
       <h1 className="page-title">{p.pseudo}</h1>
       <div className="pp-grid">
-        <MemberCard pseudo={p.pseudo} since={p.member_since} code={null} stats={[[fmtNum(p.cards), p.cards > 1 ? 'cartes' : 'carte'], [fmtShort(p.value_eur), 'de valeur'], [fmtNum(st.packs || 0), 'boosters'], [fmtNum(st.ach || 0), 'succès']]} />
+        <MemberCard pseudo={p.pseudo} since={p.member_since} code={null} avatar={p.avatar} look={p.card} stats={[[fmtNum(p.cards), p.cards > 1 ? 'cartes' : 'carte'], [fmtShort(p.value_eur), 'de valeur'], [fmtNum(st.packs || 0), 'boosters'], [fmtNum(st.ach || 0), 'succès']]} />
         <div className="pp-side">
           {[['onepiece', op], ['pokemon', pk]].map(([g, x]) => (
             <div key={g} className={'pp-game panel ' + g}>

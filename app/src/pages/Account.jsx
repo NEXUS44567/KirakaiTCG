@@ -1,18 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { href, useData, useNow } from '../lib/hooks.js';
 import { useStore, update } from '../lib/store.js';
-import { profileRow, forgetPublished } from '../lib/social.js';
+import { profileRow, profileStats, forgetPublished } from '../lib/social.js';
+import { THEMES, MOTIFS, FINISHES, EMBLEMS, TITLES, lookOf, themeStyle, titleLabel, titleOk } from '../lib/look.js';
 import { fmtDate, fmtNum, fmtShort, fmtEur, eurOf, resolveKey } from '../lib/data.js';
 import { collectionValue } from '../lib/coll.js';
 import { toast } from '../lib/toast.js';
 import {
   useCloud, cloudOn, signIn, signUp, signInWith, signOut, resetPassword, resendConfirmation, pseudoFree,
   changePassword, changePseudo, deleteAccount, syncNow, isDirty, dismissRecovery, cleanPseudo, clearLinkError, publishProfile, hideProfile,
+  uploadAvatar, removeAvatar,
 } from '../lib/cloud.js';
 import { Seg, Modal } from '../ui/Kit.jsx';
 import { CardArt } from '../ui/Card.jsx';
 import { LogoMark, Emblem } from '../ui/Brand.jsx';
 import Icon from '../ui/Icon.jsx';
+import Avatar from '../ui/Avatar.jsx';
 
 // Compte Kirakai : connexion, inscription, carte de membre et état de la sauvegarde en ligne.
 
@@ -73,11 +76,15 @@ function useProgress() {
   return { cards, value, opened, ach, watch, wallet };
 }
 
-// Carte de membre holographique (aperçu pendant l'inscription, vraie carte une fois connecté)
-export function MemberCard({ pseudo, since, code, stats, preview }) {
+// Carte de membre holographique (aperçu pendant l'inscription, vraie carte une fois connecté),
+// avec la photo et l'apparence choisies par le joueur (look : voir lib/look.js)
+export function MemberCard({ pseudo, since, code, stats, preview, avatar, look: raw }) {
+  const d = useData();
+  const look = lookOf(raw);
+  const fav = look.fav && d.ready ? resolveKey(d.cats, look.fav) : null;
   const name = pseudo || 'Ton pseudo';
   return (
-    <div className={'member' + (preview ? ' preview' : '')} data-tilt>
+    <div className={`member mo-${look.motif} fi-${look.finish}` + (preview ? ' preview' : '')} style={themeStyle(look.theme)} data-tilt>
       <div className="member-in">
         <div className="member-top">
           <LogoMark size={28} />
@@ -85,18 +92,20 @@ export function MemberCard({ pseudo, since, code, stats, preview }) {
           <em>{code ? 'N° ' + code : 'N° ······'}</em>
         </div>
         <div className="member-id">
-          <span className="member-avatar" aria-hidden="true">{name.trim().charAt(0).toUpperCase() || '?'}</span>
+          <Avatar className="member-avatar" path={avatar} name={name} />
           <div>
             <b className={'member-name' + (pseudo ? '' : ' blank')}>{name}</b>
-            <small>{since ? 'Membre depuis ' + fmtDate(since, { month: 'long', year: 'numeric' }) : 'Collectionneur One Piece et Pokémon'}</small>
+            <small className="member-title">{titleLabel(look.title)}</small>
+            {since && <small>Membre depuis {fmtDate(since, { month: 'long', year: 'numeric' })}</small>}
           </div>
+          {fav && <span className="member-fav" title={fav.name}><CardArt card={fav} tilt={false} fx={0} /></span>}
         </div>
         <div className="member-stats">
           {stats.map(([v, l]) => <span key={l}><b>{v}</b><small>{l}</small></span>)}
         </div>
         <div className="member-foot">
           <span className="member-chip" aria-hidden="true" />
-          <span className="member-emb"><Emblem game="onepiece" size={26} /><Emblem game="pokemon" size={26} /></span>
+          <span className="member-emb">{look.emb !== 'pokemon' && <Emblem game="onepiece" size={26} />}{look.emb !== 'onepiece' && <Emblem game="pokemon" size={26} />}</span>
         </div>
       </div>
       <i className="member-holo" aria-hidden="true" />
@@ -376,6 +385,8 @@ function SyncPanel() {
 function Profile() {
   const c = useCloud();
   const p = useProgress();
+  const prof = useStore((s) => s.profile);
+  const [studio, setStudio] = useState(null);
   const user = c.user;
   const pseudo = c.pseudo || '';
   const code = user.id.replace(/-/g, '').slice(0, 6).toUpperCase();
@@ -393,7 +404,12 @@ function Profile() {
       {!pseudo && <div className="acc-first"><PseudoPanel current="" suggest={suggest} /></div>}
       <div className="acc-grid profile">
         <div className="acc-col">
-          <MemberCard pseudo={pseudo || 'Nouveau joueur'} since={user.created_at} code={code} stats={statsOf(p)} />
+          <MemberCard pseudo={pseudo || 'Nouveau joueur'} since={user.created_at} code={code} stats={statsOf(p)} avatar={prof?.avatar} look={prof?.card} />
+          <div className="row acc-card-actions">
+            <button className="btn primary" onClick={() => setStudio('main')}><Icon name="sparkle" size={18} />Personnaliser ma carte</button>
+            <button className="btn ghost" onClick={() => setStudio('photo')}><Icon name="camera" size={18} />{prof?.avatar ? 'Changer ma photo' : 'Ajouter une photo'}</button>
+          </div>
+          <CardStudio view={studio} setView={setStudio} pseudo={pseudo || 'Nouveau joueur'} since={user.created_at} code={code} stats={statsOf(p)} progress={p} />
           <SyncPanel />
           <section className="panel pad acc-saved">
             <h2 className="acc-h"><Icon name="cloud" size={20} />Enregistré dans ton compte</h2>
@@ -502,6 +518,219 @@ function ShowcasePicker({ open, onClose }) {
   );
 }
 
+// ---------- Personnalisation de la carte de membre (et photo de profil) ----------
+const setLook = (k, v) => update((s) => { s.profile = { ...(s.profile || {}), card: { ...lookOf(s.profile?.card), [k]: v } }; });
+
+function CardStudio({ view, setView, pseudo, since, code, stats, progress }) {
+  const d = useData();
+  const prof = useStore((s) => s.profile) || {};
+  const streak = useStore((s) => s.quests?.best || s.quests?.streak || 0);
+  const coll = useStore((s) => s.collection);
+  const look = lookOf(prof.card);
+  // Titres à débloquer : chiffres de la progression, dont les extensions complètes
+  const unlock = useMemo(() => {
+    if (!view) return null;
+    const st = d.ready ? profileStats(d) : null;
+    return { cards: progress.cards, value: progress.value?.total || 0, opened: progress.opened, ach: progress.ach, watch: progress.watch, streak, completeOp: st?.per.onepiece.complete || 0, completePk: st?.per.pokemon.complete || 0 };
+  }, [view, d.ready, d.v, coll, progress.opened, progress.ach, progress.watch, streak]);
+  const close = () => setView(null);
+  const title = view === 'photo' ? 'Ma photo de profil' : view === 'fav' ? 'Ma carte fétiche' : 'Personnaliser ma carte';
+  return (
+    <Modal open={!!view} onClose={close} title={title} wide className="studio">
+      {view === 'photo' ? <PhotoEditor current={prof.avatar} name={pseudo} onDone={() => setView('main')} onCancel={() => setView('main')} />
+        : view === 'fav' ? <FavPicker current={look.fav} onDone={() => setView('main')} />
+        : (
+          <div className="studio-grid">
+            <div className="studio-preview"><MemberCard pseudo={pseudo} since={since} code={code} stats={stats} avatar={prof.avatar} look={look} /></div>
+            <div className="studio-opts">
+              <section>
+                <h4>Photo de profil</h4>
+                <div className="studio-photo">
+                  <Avatar className="acc-av huge" path={prof.avatar} name={pseudo} />
+                  <button className="btn small ghost" onClick={() => setView('photo')}><Icon name="camera" size={16} />{prof.avatar ? 'Changer' : 'Ajouter une photo'}</button>
+                </div>
+              </section>
+              <section>
+                <h4>Couleur <small>{THEMES[look.theme].label}</small></h4>
+                <div className="studio-swatches" role="radiogroup" aria-label="Couleur de la carte">
+                  {Object.entries(THEMES).map(([id, t]) => (
+                    <button key={id} type="button" role="radio" aria-checked={look.theme === id} aria-label={t.label} title={t.label} className={'swatch' + (look.theme === id ? ' on' : '') + (t.c ? '' : ' auto')} style={themeStyle(id)} onClick={() => setLook('theme', id)} />
+                  ))}
+                </div>
+              </section>
+              <Choice label="Motif" value={look.motif} options={MOTIFS} onPick={(v) => setLook('motif', v)} />
+              <Choice label="Finition" value={look.finish} options={FINISHES} onPick={(v) => setLook('finish', v)} />
+              <section>
+                <h4>Titre</h4>
+                <div className="studio-titles">
+                  {TITLES.map((t) => {
+                    const ok = titleOk(t.id, unlock);
+                    return (
+                      <button key={t.id} type="button" className={'studio-title' + (look.title === t.id ? ' on' : '')} disabled={!ok} aria-pressed={look.title === t.id} onClick={() => setLook('title', t.id)}>
+                        <span>{t.label}</span>
+                        {!ok ? <small><Icon name="lock" size={13} />{t.need}</small> : look.title === t.id ? <Icon name="check" size={16} stroke={3} /> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+              <section>
+                <h4>Carte fétiche</h4>
+                <p className="faint small">Une carte de ta collection, affichée sur ta carte de membre.</p>
+                <div className="row">
+                  <button className="btn small ghost" onClick={() => setView('fav')}><Icon name="star" size={16} />{look.fav ? 'Changer de carte' : 'Choisir une carte'}</button>
+                  {look.fav && <button className="btn small ghost" onClick={() => setLook('fav', null)}>Retirer</button>}
+                </div>
+              </section>
+              <Choice label="Emblèmes" value={look.emb} options={EMBLEMS} onPick={(v) => setLook('emb', v)} />
+              <p className="faint small">Ta carte est enregistrée dans ton compte et s’affiche sur ton profil public.</p>
+            </div>
+          </div>
+        )}
+    </Modal>
+  );
+}
+
+function Choice({ label, value, options, onPick }) {
+  return (
+    <section>
+      <h4>{label}</h4>
+      <div className="chips">
+        {Object.entries(options).map(([id, l]) => <button key={id} type="button" className={'chip' + (value === id ? ' on' : '')} aria-pressed={value === id} onClick={() => onPick(id)}>{l}</button>)}
+      </div>
+    </section>
+  );
+}
+
+// Carte fétiche : une carte de la collection (les plus chères d'abord)
+function FavPicker({ current, onDone }) {
+  const d = useData();
+  const coll = useStore((s) => s.collection);
+  const list = useMemo(() => {
+    if (!d.ready) return [];
+    return [...new Set(coll.map((e) => e.key))].map((k) => { const c = resolveKey(d.cats, k); return c && { c, eur: eurOf(c, d.P, d.fx) || 0 }; }).filter(Boolean).sort((a, b) => b.eur - a.eur).slice(0, 120);
+  }, [coll, d.ready, d.v]);
+  const pick = (k) => { setLook('fav', k); onDone(); };
+  return (
+    <>
+      <button className="btn small ghost" onClick={onDone}><Icon name="left" size={16} />Retour</button>
+      {list.length === 0 ? <p className="muted">Ajoute des cartes à ta collection pour choisir ta carte fétiche.</p> : (
+        <div className="sc-grid">
+          {list.map(({ c, eur }) => (
+            <button key={c.key} type="button" className={'sc-item' + (current === c.key ? ' on' : '')} onClick={() => pick(c.key)} aria-pressed={current === c.key}>
+              <CardArt card={c} tilt={false} fx={0} />
+              <span>{c.name}</span>
+              <small>{fmtEur(eur)}</small>
+              {current === c.key && <i className="sc-check"><Icon name="check" size={14} stroke={3} /></i>}
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+// Photo de profil : choix d'une image, cadrage dans le rond (glisser, pincer ou curseur), envoi en 320 × 320
+const VIEW = 260, OUT = 320;
+function PhotoEditor({ current, name, onDone, onCancel }) {
+  const [img, setImg] = useState(null);
+  const [z, setZ] = useState(1);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const fileRef = useRef(null);
+  const ptrs = useRef(new Map());
+  const start = useRef(null);
+  const base = img ? VIEW / Math.min(img.naturalWidth, img.naturalHeight) : 1;
+  const clamp = (p, zz) => {
+    const k = base * zz, mw = Math.max(0, (img.naturalWidth * k - VIEW) / 2), mh = Math.max(0, (img.naturalHeight * k - VIEW) / 2);
+    return { x: Math.max(-mw, Math.min(mw, p.x)), y: Math.max(-mh, Math.min(mh, p.y)) };
+  };
+  const zoomTo = (zz) => { const v = Math.max(1, Math.min(4, zz)); setZ(v); setPos((p) => clamp(p, v)); };
+  useEffect(() => () => { if (img?.src.startsWith('blob:')) URL.revokeObjectURL(img.src); }, [img]);
+  const load = (f) => {
+    setErr('');
+    if (!f) return;
+    if (!/^image\//.test(f.type) && !/\.(jpe?g|png|webp|heic|heif|gif)$/i.test(f.name)) { setErr('Choisis une image (photo JPEG, PNG…).'); return; }
+    if (f.size > 25e6) { setErr('Cette image est trop lourde (25 Mo au plus).'); return; }
+    const im = new Image();
+    im.onload = () => { setImg(im); setZ(1); setPos({ x: 0, y: 0 }); };
+    im.onerror = () => setErr('Cette image ne peut pas être lue ici. Essaie une photo JPEG ou PNG.');
+    im.src = URL.createObjectURL(f);
+  };
+  const snap = () => { const pts = [...ptrs.current.values()]; start.current = { pos, z, pts, dist: pts.length > 1 ? Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) : 0 }; };
+  const down = (e) => { e.currentTarget.setPointerCapture?.(e.pointerId); ptrs.current.set(e.pointerId, { x: e.clientX, y: e.clientY }); snap(); };
+  const move = (e) => {
+    if (!img || !ptrs.current.has(e.pointerId)) return;
+    ptrs.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const st = start.current, pts = [...ptrs.current.values()];
+    if (pts.length > 1 && st.dist) {
+      const v = Math.max(1, Math.min(4, st.z * Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) / st.dist));
+      setZ(v); setPos(clamp(st.pos, v));
+    } else if (st.pts[0]) setPos(clamp({ x: st.pos.x + pts[0].x - st.pts[0].x, y: st.pos.y + pts[0].y - st.pts[0].y }, z));
+  };
+  const up = (e) => { ptrs.current.delete(e.pointerId); snap(); };
+  const save = async () => {
+    setBusy(true); setErr('');
+    try {
+      const cv = document.createElement('canvas'); cv.width = cv.height = OUT;
+      const ctx = cv.getContext('2d'), k = OUT / VIEW, w = img.naturalWidth * base * z, h = img.naturalHeight * base * z;
+      ctx.fillStyle = '#0b0d16'; ctx.fillRect(0, 0, OUT, OUT);
+      ctx.drawImage(img, (VIEW / 2 + pos.x - w / 2) * k, (VIEW / 2 + pos.y - h / 2) * k, w * k, h * k);
+      const enc = (type) => new Promise((res) => cv.toBlob(res, type, 0.86));
+      let blob = await enc('image/webp');
+      if (!blob || blob.type !== 'image/webp') blob = await enc('image/jpeg');
+      if (!blob) throw new Error('La photo n’a pas pu être préparée.');
+      const path = await uploadAvatar(blob);
+      update((s) => { s.profile = { ...(s.profile || {}), avatar: path }; });
+      if (current && current !== path) removeAvatar(current).catch(() => {});
+      toast('Ta photo est sur ta carte de membre.', { icon: 'camera', title: 'Photo enregistrée' });
+      onDone();
+    } catch (e) { setErr(e.message); } finally { setBusy(false); }
+  };
+  const drop = async () => {
+    setBusy(true);
+    update((s) => { s.profile = { ...(s.profile || {}), avatar: null }; });
+    await removeAvatar(current).catch(() => {});
+    setBusy(false);
+    toast('Photo retirée.', { icon: 'trash' });
+    onDone();
+  };
+  const w = img ? img.naturalWidth * base * z : 0, h = img ? img.naturalHeight * base * z : 0;
+  return (
+    <div className="ph-edit">
+      <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { load(e.target.files?.[0]); e.target.value = ''; }} />
+      {!img ? (
+        <div className="ph-start">
+          <Avatar className="acc-av giant" path={current} name={name} />
+          <p className="muted small">Choisis une photo dans ta galerie ou prends-en une. Tu pourras la cadrer avant de l’enregistrer.</p>
+          <div className="row">
+            <button className="btn primary" onClick={() => fileRef.current?.click()}><Icon name="camera" size={18} />Choisir une photo</button>
+            {current && <button className="btn ghost" onClick={drop} disabled={busy}><Icon name="trash" size={17} />Retirer ma photo</button>}
+          </div>
+        </div>
+      ) : (
+        <div className="ph-crop">
+          <div className="ph-view" style={{ width: VIEW, height: VIEW }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
+            onWheel={(e) => zoomTo(z * (e.deltaY < 0 ? 1.08 : 1 / 1.08))}>
+            <img src={img.src} alt="" draggable={false} style={{ width: w, height: h, transform: `translate(calc(-50% + ${pos.x}px), calc(-50% + ${pos.y}px))` }} />
+            <i className="ph-ring" aria-hidden="true" />
+          </div>
+          <label className="ph-zoom"><Icon name="minus" size={16} /><input type="range" min="1" max="4" step="0.01" value={z} onChange={(e) => zoomTo(Number(e.target.value))} aria-label="Zoom" /><Icon name="plus" size={16} /></label>
+          <p className="faint small">Fais glisser la photo pour la placer dans le rond, pince ou utilise le curseur pour zoomer.</p>
+          <div className="row">
+            <button className="btn primary" onClick={save} disabled={busy}>{busy ? <span className="acc-spin" /> : <Icon name="check" size={18} />}Enregistrer</button>
+            <button className="btn ghost" onClick={() => fileRef.current?.click()} disabled={busy}>Autre photo</button>
+          </div>
+        </div>
+      )}
+      {err && <p className="notice" role="alert">{err}</p>}
+      <button className="btn small ghost ph-back" onClick={onCancel} disabled={busy}><Icon name="left" size={16} />Retour à ma carte</button>
+      <p className="faint small">Ta photo est visible par les autres joueurs si ton profil est public. Pas de photo choquante ni d’informations personnelles.</p>
+    </div>
+  );
+}
+
 function PseudoPanel({ current, suggest = '' }) {
   const [v, setV] = useState(current || suggest);
   const { busy, err, run } = useSubmit();
@@ -571,11 +800,12 @@ function DeletePanel({ pseudo }) {
 export function AccountButton() {
   const c = useCloud();
   if (!cloudOn()) return null;
+  const av = useStore((s) => s.profile?.avatar);
   const name = c.pseudo || c.user?.meta?.pseudo || '';
   const label = c.user ? `Mon compte (${STATUS[c.status]?.[1] || ''})` : 'Se connecter ou créer un compte';
   return (
     <a className={'icon-btn acc-btn' + (c.user ? ' in st-' + c.status : '')} href={href('/compte')} aria-label={label} title={c.user ? name : 'Se connecter'}>
-      {c.user ? <span className="acc-av" aria-hidden="true">{name ? name.charAt(0).toUpperCase() : <Icon name="user" size={15} />}</span> : <Icon name="user" />}
+      {c.user ? <Avatar className="acc-av" path={av} name={name}>{name ? undefined : <Icon name="user" size={15} />}</Avatar> : <Icon name="user" />}
       {c.user && <i className="acc-dot" aria-hidden="true" />}
     </a>
   );
@@ -584,6 +814,7 @@ export function AccountButton() {
 // Encart du menu latéral
 export function AccountDrawer({ tab }) {
   const c = useCloud();
+  const av = useStore((s) => s.profile?.avatar);
   if (!cloudOn()) return null;
   if (!c.user) return (
     <a className="drawer-acc out" href={href('/compte')} tabIndex={tab}>
@@ -595,7 +826,7 @@ export function AccountDrawer({ tab }) {
   const name = c.pseudo || c.user.meta?.pseudo || '';
   return (
     <a className={'drawer-acc st-' + c.status} href={href('/compte')} tabIndex={tab}>
-      <span className="acc-av big">{name ? name.charAt(0).toUpperCase() : <Icon name="user" size={20} />}<i className="acc-dot" /></span>
+      <span className="acc-av-wrap"><Avatar className="acc-av big" path={av} name={name}>{name ? undefined : <Icon name="user" size={20} />}</Avatar><i className="acc-dot" /></span>
       <span><b>{name || 'Choisis ton pseudo'}</b><small>{STATUS[c.status]?.[1]}</small></span>
       <Icon name="right" size={16} />
     </a>
