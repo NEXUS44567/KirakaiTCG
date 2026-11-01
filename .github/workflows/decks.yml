@@ -33,7 +33,6 @@ jobs:
       - name: Decks
         env:
           ONLY: ${{ github.event.inputs.only || (github.event_name == 'push' && 'onepiece') || '' }}
-          DEBUG_HTML: ${{ github.event_name == 'push' && '1' || '' }}
         run: node scripts/build-decks.mjs
       - name: Enregistrer
         env:

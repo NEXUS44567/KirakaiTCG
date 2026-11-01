@@ -69,15 +69,20 @@ async function opCards(lang) {
   return cards;
 }
 
-// Une page « deck recommandé » : liste (id, quantité) de la première liste complète (1 Leader + 50 cartes)
-function opDeckList(html, cards) {
-  const lists = [...html.matchAll(/<ul[^>]*>([\s\S]*?)<\/ul>/g)].map((u) => [...u[1].matchAll(/alt="([A-Z]{2,4}\d{2}-\d{3})[^"]*"[\s\S]*?class="cards_(\d+)"/g)].map((m) => [m[1], +m[2]])).filter((l) => l.length);
-  for (const l of lists) {
-    const leaders = l.filter(([id]) => cards[id]?.cat === 'LEADER');
-    const n = l.reduce((a, [, q]) => a + q, 0);
-    if (leaders.length === 1 && n === 51) return l;
-  }
-  return null;
+// Une page « deck recommandé » : liste (id, quantité) — 1 Leader + 50 cartes — et présentation du deck
+function opDeckPage(html, cards) {
+  const block = /<div class="deckCardlistCol">([\s\S]*?)<\/section>/.exec(html)?.[1] || html;
+  const list = [...block.matchAll(/alt="(?:[^"]*?\s)?([A-Z]{2,4}\d{2}-\d{3})[^"]*"[\s\S]*?class="cards_(\d+)"/g)].map((m) => [m[1], +m[2]]);
+  const leaders = list.filter(([id]) => cards[id]?.cat === 'LEADER');
+  const n = list.reduce((a, [, q]) => a + q, 0);
+  if (leaders.length !== 1 || n !== 51) return null;
+  return {
+    list,
+    title: txt(/<h3 class="pageTit"><span>[^<]*<\/span>([\s\S]*?)<\/h3>/.exec(html)?.[1]),
+    date: txt(/<span class="pageTitDate">([\s\S]*?)<\/span>/.exec(html)?.[1]),
+    catch: txt(/<div class="topCatchphrase">([\s\S]*?)<\/div>/.exec(html)?.[1]),
+    concept: txt(/<div class="deckPointCol">\s*<p>([\s\S]*?)<\/p>/.exec(html)?.[1]),
+  };
 }
 
 async function onePiece() {
@@ -99,34 +104,26 @@ async function onePiece() {
   };
   const enPages = await pages('en');
   let frPages = []; try { frPages = await pages('fr'); } catch (e) { log('decks fr', e.message); }
+  const key = (l) => JSON.stringify([...l].sort());
   const frByList = new Map();
   for (const p of frPages) {
-    try { const l = opDeckList(await get(p.url), en); if (l) frByList.set(JSON.stringify([...l].sort()), p); } catch (e) { log('deck fr', p.url, e.message); }
+    try { const d = opDeckPage(await get(p.url), en); if (d) frByList.set(key(d.list), d); } catch (e) { log('deck fr', p.url, e.message); }
     await sleep(300);
   }
   for (const p of enPages) {
     try {
-      const html = await get(p.url);
-      if (process.env.DEBUG_HTML && ['108', '001'].includes(p.n)) writeJSON(path.join(OUT, '_debug', p.n + '.json'), { html });
-      const list = opDeckList(html, en);
-      if (!list) { log('deck sans liste complète', p.url); continue; }
-      const leader = list.find(([id]) => en[id]?.cat === 'LEADER')[0];
-      const frp = frByList.get(JSON.stringify([...list].sort()));
-      const id = 'op' + p.n;
-      const bits = p.bits.filter((b) => !/^NEW$/i.test(b));
-      const date = bits.find((b) => /\d{4}/.test(b) && /[A-Za-z]/.test(b)) || '';
-      const head = bits.find((b) => /^\(/.test(b)) || '';
-      const color = (/^\(([^)]+)\)/.exec(head) || [])[1] || en[leader].color;
-      const frBits = (frp?.bits || []).filter((b) => !/^NEW$/i.test(b));
-      const quote = (arr) => arr.find((b) => /^[«"“].+[»"”]$/.test(b)) || '';
-      const descOf = (arr, h) => arr.filter((b) => b !== h && !/\d{4}/.test(b) && !/^\(/.test(b) && !/^[«"“].+[»"”]$/.test(b)).sort((a, b) => b.length - a.length)[0] || '';
-      const frHead = frBits.find((b) => /^\(/.test(b)) || '';
+      const d = opDeckPage(await get(p.url), en);
+      if (!d) { log('deck sans liste complète', p.url); continue; }
+      const f = frByList.get(key(d.list));
+      const leader = d.list.find(([id]) => en[id]?.cat === 'LEADER')[0];
+      const head = (t) => /^\(([^)]+)\)\s*(.*)$/.exec(t) || [null, '', t];
+      const [, color, who] = head(d.title), [, colorFr, whoFr] = head(f?.title || '');
       decks.push({
-        id, game: 'onepiece', leader, color, colorFr: (/^\(([^)]+)\)/.exec(frHead) || [])[1] || '', date,
-        title: quote(frBits) || quote(bits), desc: descOf(frBits, frHead) || descOf(bits, head), lang: frp ? 'fr' : 'en', src: p.url,
-        cards: list.map(([cid, q]) => {
-          const c = en[cid], f = fr[cid];
-          return { id: cid, n: q, name: f?.name || c.name, name_en: c.name, cat: c.cat, cost: c.cost, life: c.life, power: c.power, counter: c.counter, color: c.color, attr: c.attr, types: f?.types || c.types, text: f?.text || c.text, trigger: f?.trigger || c.trigger };
+        id: 'op' + p.n, game: 'onepiece', leader, name: whoFr || who, color, colorFr, date: d.date,
+        title: f?.catch || d.catch, desc: f?.concept || d.concept, lang: f ? 'fr' : 'en', src: p.url,
+        cards: d.list.map(([cid, q]) => {
+          const c = en[cid], x = fr[cid];
+          return { id: cid, n: q, name: x?.name || c.name, name_en: c.name, cat: c.cat, cost: c.cost, life: c.life, power: c.power, counter: c.counter, color: c.color, attr: c.attr, types: x?.types || c.types, text: x?.text || c.text, trigger: x?.trigger || c.trigger };
         }),
       });
     } catch (e) { log('deck', p.url, e.message); }
