@@ -1,7 +1,7 @@
 // Service worker de Kirakai (portée /KirakaiTCG/) : ouverture instantanée après la première visite,
 // consultation hors ligne avec les derniers prix connus. Les prix sont toujours redemandés au réseau d'abord.
 // Les caches sont préfixés « kirakai- » pour ne jamais toucher à ceux des autres sites du même domaine.
-const VERSION = 'c6aca1760e';
+const VERSION = 'd6174f28d8';
 const STATIC = 'kirakai-static-' + VERSION;
 const DATA = 'kirakai-data-v1';
 const IMAGES = 'kirakai-images-v1';
