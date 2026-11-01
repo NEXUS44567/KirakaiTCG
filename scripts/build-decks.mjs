@@ -107,6 +107,7 @@ async function onePiece() {
   for (const p of enPages) {
     try {
       const html = await get(p.url);
+      if (process.env.DEBUG_HTML && ['108', '001'].includes(p.n)) writeJSON(path.join(OUT, '_debug', p.n + '.json'), { html });
       const list = opDeckList(html, en);
       if (!list) { log('deck sans liste complète', p.url); continue; }
       const leader = list.find(([id]) => en[id]?.cat === 'LEADER')[0];
