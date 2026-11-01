@@ -15,6 +15,7 @@ import './styles/collection.css';
 import './styles/scanner.css';
 import './styles/worlds.css';
 import './styles/account.css';
+import './styles/play.css';
 
 try { sessionStorage.removeItem('nexus3.heal'); } catch {}
 installTilt();

@@ -178,6 +178,10 @@ export default function Home({ game }) {
           <span className="bt-chart" aria-hidden="true"><svg viewBox="0 0 120 50" preserveAspectRatio="none"><path d="M0 42 C15 40 20 30 32 32 S50 18 62 22 S82 8 95 12 S112 4 120 2" /></svg></span>
           <span className="bt-txt"><span className="bt-ico"><Icon name="market" size={22} /></span><h3>Le marché</h3><p>Valeur totale, extensions les plus précieuses, répartition des prix et indice du top 50.</p><span className="link">Voir le marché <Icon name="arrow" size={16} /></span></span>
         </a>
+        <a className="bento-tile play" href={href('/jouer')}>
+          <span className="bt-play" aria-hidden="true"><i /><i /><i /></span>
+          <span className="bt-txt"><span className="bt-ico"><Icon name="play" size={22} /></span><h3>Joue une partie</h3><p>De vrais decks officiels sur un tapis de jeu, seul ou à deux.</p><span className="link">Jouer <Icon name="arrow" size={16} /></span></span>
+        </a>
         <a className="bento-tile compare" href={href('/comparateur')}>
           <span className="bt-txt"><span className="bt-ico"><Icon name="compare" size={22} /></span><h3>Compare</h3><p>Jusqu’à 4 cartes côte à côte, avec leurs courbes.</p><span className="link">Comparer <Icon name="arrow" size={16} /></span></span>
         </a>

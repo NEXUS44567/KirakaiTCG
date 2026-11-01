@@ -29,6 +29,10 @@ En plus dans Kirakai :
 - ce qui monte et ce qui baisse dans ma collection
 - quêtes du jour et série de jours de visite, récompensées en Berrys et en Pokéballs
 - profils publics avec vitrine de cartes et classement des plus belles collections (`#/collectionneurs`, `#/joueur/<pseudo>`)
+- section « Jouer » : parties en mode bac à sable sur un tapis de jeu, avec de vrais decks officiels (102 decks
+  recommandés One Piece du site officiel, 186 decks à thème Pokémon), seul ou à deux sur le même appareil :
+  mélange, pioche, mains de départ, Vies, Récompenses, DON!!, dégâts, énergies, évolutions, pile ou face, journal
+  et annulation ; les règles sont appliquées par les joueurs (`scripts/build-decks.mjs` → `db/decks/`)
 - photo de profil (cadrée sur le site, rangée dans Supabase Storage) et carte de membre personnalisable : couleur, motif,
   finition, titre (certains à débloquer), carte fétiche, emblèmes
 - alertes de prix sur le téléphone, même site fermé (notifications envoyées par le robot `alerts/send.mjs` après le relevé)
@@ -51,6 +55,7 @@ Les prix sont relevés chaque matin par GitHub Actions et rangés dans `db/` :
 
 - **Relevé des prix** (`scripts/fetch-prices.mjs`) : prix du jour, historique, marché ;
 - **Langues (FR / JP)** (`scripts/build-lang.mjs`) : noms et images français et japonais, chaque lundi ;
+- **Decks préconstruits (Jouer)** (`scripts/build-decks.mjs`) : decks de la section « Jouer », chaque mardi ;
 - **Kirakai (pages des cartes et alertes)** : juste après, met à jour les pages lues par Google (`seo.mjs`) et envoie
   les alertes de prix sur les téléphones (`alerts/send.mjs`).
 

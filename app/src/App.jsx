@@ -24,6 +24,8 @@ import { SettingsPage, AdminPage } from './pages/Settings.jsx';
 import AccountPage, { AccountButton, AccountDrawer } from './pages/Account.jsx';
 import WishPage from './pages/Wish.jsx';
 import { PlayersPage, PlayerPage } from './pages/Players.jsx';
+import PlayPage from './pages/Play.jsx';
+import GamePage from './pages/PlayGame.jsx';
 import { useProfileSync } from './lib/social.js';
 
 const NAVS = {
@@ -33,7 +35,7 @@ const NAVS = {
 const TABS = (u) => NAVS[u].filter(([to]) => !['/marche', '/scanner'].includes(to));
 
 function titleFor(p, G) {
-  const T = { recherche: `Recherche ${G}`, comparateur: 'Comparateur de prix', suivis: 'Mes alertes de prix', classement: `Top 100 ${G}`, marche: `Le marché ${G}`, extensions: `Extensions ${G}`, extension: `Extension ${G}`, collection: `Ma collection ${G}`, boosters: `Boosters ${G}`, boutique: 'Boutique', scanner: 'Scanner une carte', pokedex: 'Pokédex', equipage: 'L’équipage', reglages: 'Réglages', succes: 'Succès', admin: 'Administration', compte: 'Mon compte', souhaits: 'Ma liste de souhaits', collectionneurs: 'Les plus belles collections', joueur: 'Collectionneur' };
+  const T = { recherche: `Recherche ${G}`, comparateur: 'Comparateur de prix', suivis: 'Mes alertes de prix', classement: `Top 100 ${G}`, marche: `Le marché ${G}`, extensions: `Extensions ${G}`, extension: `Extension ${G}`, collection: `Ma collection ${G}`, boosters: `Boosters ${G}`, boutique: 'Boutique', scanner: 'Scanner une carte', pokedex: 'Pokédex', equipage: 'L’équipage', reglages: 'Réglages', succes: 'Succès', admin: 'Administration', compte: 'Mon compte', souhaits: 'Ma liste de souhaits', collectionneurs: 'Les plus belles collections', joueur: 'Collectionneur', jouer: 'Jouer' };
   return T[p[0]] ? `${T[p[0]]} · Kirakai` : `Kirakai · ${G} · prix, collection et boosters`;
 }
 
@@ -116,6 +118,7 @@ export default function App() {
     case 'souhaits': page = <WishPage />; break;
     case 'collectionneurs': page = <PlayersPage />; break;
     case 'joueur': page = <PlayerPage pseudo={p[1] || ''} key={p[1]} />; break;
+    case 'jouer': page = p[1] === 'partie' ? <GamePage /> : <PlayPage />; break;
     case 'admin': page = <AdminPage code={p[1] || ''} />; break;
     default: page = <div className="page"><h1 className="page-title">Page introuvable</h1><a className="btn primary" href={href('/')}>Accueil</a></div>;
   }
@@ -126,7 +129,7 @@ export default function App() {
   const other = otherGame(universe);
   const active = (to) => (to === UNIV_HOME[universe] ? route.path === to : to === '/extensions' ? /^\/extensions?(\/|$)/.test(route.path) : route.path.startsWith(to));
   return (
-    <div className={'shell u-' + universe}>
+    <div className={'shell u-' + universe + (p[0] === 'jouer' && p[1] === 'partie' ? ' at-table' : '')}>
       <div className="aurora" aria-hidden="true"><i /><i /><i /></div>
       <a className="skip" href="#contenu">Aller au contenu</a>
       <header className="topbar">
@@ -153,7 +156,7 @@ export default function App() {
       <InstallBanner />
       {d.ready && <AlertBanner />}
       <main id="contenu"><div className="route" key={route.path}>{page}</div></main>
-      <Footer universe={universe} />
+      {!(p[0] === 'jouer' && p[1] === 'partie') && <Footer universe={universe} />}
       <nav className="tabbar" aria-label="Navigation">
         <NavBolt path={route.path} edge="top" />
         {TABS(universe).map(([to, l, i]) => <a key={to} href={href(to)} className={active(to) ? 'on' : ''}><span className="tb-ico"><Icon name={i} size={22} /></span><span>{l}</span></a>)}
@@ -299,7 +302,7 @@ function Drawer({ open, onClose, universe, other, openPalette }) {
   const links = [
     [GAMES[universe].world, GAMES[universe].worldLabel, universe === 'onepiece' ? 'crew' : 'dex'],
     ['/marche', 'Le marché du jour', 'market'], ['/classement', 'Top 100', 'trophy'], ['/scanner', 'Scanner une carte', 'scan'],
-    ['/comparateur', 'Comparateur', 'compare', cmp], ['/suivis', 'Mes alertes de prix', 'bell', watchN], ['/souhaits', 'Ma liste de souhaits', 'heart', wishN || null], ['/collectionneurs', 'Les collectionneurs', 'trophy'], ['/boutique', 'Boutique', 'coin'],
+    ['/comparateur', 'Comparateur', 'compare', cmp], ['/suivis', 'Mes alertes de prix', 'bell', watchN], ['/souhaits', 'Ma liste de souhaits', 'heart', wishN || null], ['/collectionneurs', 'Les collectionneurs', 'trophy'], ['/jouer', 'Jouer avec de vrais decks', 'play'], ['/boutique', 'Boutique', 'coin'],
     ['/succes', 'Succès', 'crown', ach || null], ['/reglages', 'Réglages et sauvegarde', 'gear'],
   ];
   return (
@@ -400,7 +403,7 @@ function Footer({ universe }) {
         <nav className="footer-cols">
           <div><b>Explorer</b><a href={href('/extensions/' + universe)}>Extensions</a><a href={href(GAMES[universe].world)}>{GAMES[universe].worldLabel}</a><a href={href('/marche')}>Marché du jour</a><a href={href('/classement')}>Top 100</a></div>
           <div><b>Mes outils</b><a href={href('/collection')}>Collection et classeur</a><a href={href('/scanner')}>Scanner</a><a href={href('/comparateur')}>Comparateur</a><a href={href('/suivis')}>Alertes de prix</a><a href={href('/souhaits')}>Liste de souhaits</a></div>
-          <div><b>Jouer</b><a href={href('/boosters')}>Boosters virtuels</a><a href={href('/boosters/collection')}>Collection virtuelle</a><a href={href('/succes')}>Succès</a><a href={href('/boutique')}>Boutique</a><a href={href('/collectionneurs')}>Collectionneurs</a></div>
+          <div><b>Jouer</b><a href={href('/jouer')}>Parties avec de vrais decks</a><a href={href('/boosters')}>Boosters virtuels</a><a href={href('/boosters/collection')}>Collection virtuelle</a><a href={href('/succes')}>Succès</a><a href={href('/boutique')}>Boutique</a><a href={href('/collectionneurs')}>Collectionneurs</a></div>
         </nav>
       </div>
       <p className="footer-legal">Prix : TCGplayer via optcgapi.com (One Piece) et Cardmarket / TCGplayer via pokemontcg.io et tcgdex (Pokémon). Pokédex : PokéAPI. Images : optcgapi.com, pokemontcg.io, Scrydex, TCGdex, PokéAPI. Site de fan indépendant, non affilié à Bandai, Toei Animation, Shueisha, Nintendo, Creatures, GAME FREAK ou The Pokémon Company. One Piece © Eiichiro Oda / Shueisha, Toei Animation. Pokémon © Nintendo / Creatures / GAME FREAK. · <a href={href('/reglages')}>Réglages</a> · <a href="https://nexus44567.github.io/nexus-tcg/">Ancienne version</a></p>
