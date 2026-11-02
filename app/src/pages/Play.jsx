@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useData, useAsync, useUniverse, href } from '../lib/hooks.js';
-import { resolveKey, fmtDate, GAMES } from '../lib/data.js';
-import { deckIndex, deckFile, newGame, usePlay, quit, coverKey, colorFr, PK_TYPES } from '../lib/play.js';
+import { fmtDate, GAMES } from '../lib/data.js';
+import { deckIndex, deckFile, newGame, usePlay, quit, coverKey, artCard, artOfKey, colorFr, PK_TYPES } from '../lib/play.js';
 import { SFX } from '../lib/sfx.js';
 import { toast } from '../lib/toast.js';
 import { CardArt } from '../ui/Card.jsx';
@@ -98,7 +98,7 @@ export default function PlayPage() {
         : (
           <div className="deck-grid">
             {list.map((m) => {
-              const c = resolveKey(d.cats, coverKey(m));
+              const c = artOfKey(d.cats, coverKey(m));
               const tag = m.id === me?.id ? 'Ton deck' : m.id === opp?.id ? 'Adversaire' : null;
               return (
                 <button key={m.id} type="button" className={'deck-tile ' + game + (tag ? ' picked' : '')} onClick={() => setView(m)}>
@@ -122,7 +122,7 @@ export default function PlayPage() {
 
 function PickSlot({ n, label, m, active, onClear, extra }) {
   const d = useData();
-  const c = m && d.ready ? resolveKey(d.cats, coverKey(m)) : null;
+  const c = m && d.ready ? artOfKey(d.cats, coverKey(m)) : null;
   return (
     <div className={'play-step' + (active ? ' on' : '') + (m ? ' done' : '')}>
       <span className="play-n">{m ? <Icon name="check" size={15} stroke={3} /> : n}</span>
@@ -155,7 +155,7 @@ function DeckModal({ m, onClose, step, onPick }) {
           <section key={k} className="deck-sec">
             <h4>{l} <small>{g.reduce((a, c) => a + c.n, 0)}</small></h4>
             <div className="deck-cards">
-              {g.map((c) => { const card = resolveKey(d.cats, m.game + ':' + c.id); return <span key={c.id} className="deck-card" title={c.name}>{card && <CardArt card={card} tilt={false} fx={0} />}<i>×{c.n}</i></span>; })}
+              {g.map((c) => { const card = artCard(d.cats, m.game, c.id); return <span key={c.id} className="deck-card" title={c.name}>{card && <CardArt card={card} tilt={false} fx={0} />}<i>×{c.n}</i></span>; })}
             </div>
           </section>
         );

@@ -15,6 +15,21 @@ export const deckSize = (d) => d.cards.reduce((a, c) => a + c.n, 0);
 // Carte de couverture d'un deck (clé du catalogue)
 export const coverKey = (meta) => meta.game + ':' + (meta.cover || meta.leader);
 
+// Illustration affichée en jeu : One Piece, toujours la version parallèle (la première qui existe : _p1, _p2…) ;
+// Pokémon (pas de parallèles), la carte elle-même.
+const arts = new Map();
+export function artCard(cats, game, id) {
+  const base = cats?.[game]?.byId.get(id) || null;
+  if (game !== 'onepiece' || !base) return base;
+  if (!arts.has(id)) {
+    let alt = null;
+    for (let k = 1; k <= 9 && !alt; k++) { const c = cats.onepiece.byId.get(id + '_p' + k); if (c && /^Parallèle/.test(c.variant || '')) alt = c; }
+    arts.set(id, alt);
+  }
+  return arts.get(id) || base;
+}
+export const artOfKey = (cats, key) => { const [g, ...r] = String(key).split(':'); return artCard(cats, g, r.join(':')); };
+
 export const OP_COLORS = { Red: 'Rouge', Green: 'Vert', Blue: 'Bleu', Purple: 'Violet', Black: 'Noir', Yellow: 'Jaune' };
 export const PK_TYPES = { Grass: 'Plante', Fire: 'Feu', Water: 'Eau', Lightning: 'Électrique', Psychic: 'Psy', Fighting: 'Combat', Darkness: 'Obscurité', Metal: 'Métal', Fairy: 'Fée', Dragon: 'Dragon', Colorless: 'Incolore' };
 export const colorFr = (c) => String(c || '').split('/').map((x) => OP_COLORS[x.trim()] || x.trim()).join(' / ');

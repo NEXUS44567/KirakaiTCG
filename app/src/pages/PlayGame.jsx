@@ -1,7 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useData, href, reduceMotion } from '../lib/hooks.js';
-import { resolveKey } from '../lib/data.js';
-import { usePlay, getPlay, act, A, undo, canUndo, quit, newGame, loadDefs, deckFile, zoneOf, coin, dice, colorFr, PK_TYPES, PK_COND, LIMIT, TRASH } from '../lib/play.js';
+import { usePlay, getPlay, act, A, artCard, undo, canUndo, quit, newGame, loadDefs, deckFile, zoneOf, coin, dice, colorFr, PK_TYPES, PK_COND, LIMIT, TRASH } from '../lib/play.js';
 import { SFX, burst, vibrate } from '../lib/sfx.js';
 import { CardArt } from '../ui/Card.jsx';
 import { Modal, Loading, Empty } from '../ui/Kit.jsx';
@@ -67,7 +66,7 @@ function Board({ s, defs }) {
   const me = duo ? (handoff ? 1 - deciding : deciding) : deciding;
   const C = s.cards;
   const def = (uid) => defs[C[uid]?.p]?.[C[uid]?.id];
-  const card = (uid) => resolveKey(d.cats, G + ':' + C[uid]?.id);
+  const card = (uid) => artCard(d.cats, G, C[uid]?.id);
   const nm = (uid) => def(uid)?.name || 'une carte';
   const run = (fn, ...a) => { act(fn, ...a); SFX.place(); };
   const visibleHand = (p) => (duo ? p === me && !handoff : p === me || s.peek);
@@ -462,7 +461,7 @@ function Intro({ s, defs, ctx, onClose }) {
   const cover = (p) => {
     const cards = Object.values(defs[p]);
     const c = s.game === 'onepiece' ? cards.find((x) => x.cat === 'LEADER') : cards.filter((x) => x.cat === 'Pokémon').sort((a, b) => (b.hp || 0) - (a.hp || 0))[0];
-    return c && resolveKey(d.cats, s.game + ':' + c.id);
+    return c && artCard(d.cats, s.game, c.id);
   };
   return (
     <div className={'ar-intro g-' + s.game} onClick={onClose} role="dialog" aria-label="Début de la partie">
