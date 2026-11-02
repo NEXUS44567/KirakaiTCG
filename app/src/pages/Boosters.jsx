@@ -98,9 +98,62 @@ function Pack({ prod, phase, onOpen, onPick, locked }) {
   );
 }
 
-// Les cartes sortent du booster
-function Emerge({ game, n }) {
-  return <div className="emerge" aria-hidden="true">{Array.from({ length: n }, (_, i) => <span key={i} className="em-card" style={{ '--i': i, '--o': i - (n - 1) / 2 }}><CardBack game={game} /></span>)}</div>;
+// La première carte sort du booster par le haut, le paquet tombe
+function Emerge({ game }) {
+  return <div className="emerge" aria-hidden="true"><span className="em-one"><CardBack game={game} /></span></div>;
+}
+
+// ---- Choix du booster : un cercle de boosters qui tourne, on le fait tourner du doigt et on en touche un ----
+const RING_N = 9;
+function PackRing({ prod, onChoose }) {
+  const step = 360 / RING_N;
+  const [ang, setAng] = useState(0);
+  const [picked, setPicked] = useState(null);
+  const a = useRef(0), v = useRef(-0.06), drag = useRef(null), raf = useRef(0);
+  const swiped = useRef(false); // un glissement ne vaut pas un choix
+  useEffect(() => {
+    const still = reduceMotion();
+    const tick = () => {
+      if (!drag.current && picked == null) {
+        if (Math.abs(v.current) > 0.07) v.current *= 0.95; else if (!still) v.current = v.current < 0 ? -0.07 : 0.07;
+        a.current += v.current; setAng(a.current);
+      }
+      raf.current = requestAnimationFrame(tick);
+    };
+    raf.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf.current);
+  }, [picked]);
+  const front = (((Math.round(-a.current / step) % RING_N) + RING_N) % RING_N);
+  const down = (e) => { swiped.current = false; if (picked != null) return; drag.current = { x: e.clientX, x0: e.clientX, t: performance.now(), moved: false, id: e.pointerId, el: e.currentTarget }; };
+  const move = (e) => {
+    const g = drag.current; if (!g) return;
+    const dx = e.clientX - g.x; g.x = e.clientX;
+    if (!g.moved && Math.abs(e.clientX - g.x0) > 6) { g.moved = true; try { g.el.setPointerCapture(g.id); } catch {} } // on ne capture qu'en glissant : un simple toucher reste un choix
+    const k = 0.32; a.current += dx * k; v.current = dx * k * 0.6; setAng(a.current);
+    if (Math.abs(dx) > 14) SFX.tick();
+  };
+  const up = () => { swiped.current = !!drag.current?.moved; drag.current = null; };
+  const choose = (i) => {
+    if (picked != null) return;
+    // le booster touché vient se placer devant, puis s'avance
+    const target = -i * step, cur = a.current;
+    const delta = ((((target - cur) % 360) + 540) % 360) - 180;
+    a.current = cur + delta; v.current = 0; setAng(a.current); setPicked(i);
+    SFX.whoosh(); vibrate(20);
+    setTimeout(onChoose, 650);
+  };
+  return (
+    <div className="pring" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} style={{ '--ang': ang + 'deg' }}>
+      <div className={'pring-in' + (picked != null ? ' chosen' : '')}>
+        {Array.from({ length: RING_N }, (_, i) => (
+          <button key={i} type="button" className={'pring-pack' + (i === front ? ' front' : '') + (i === picked ? ' picked' : '')} style={{ '--a': i * step + 'deg' }}
+            onClick={() => { if (swiped.current) { swiped.current = false; return; } choose(i); }} aria-label={'Choisir ce booster ' + prod.name}>
+            <span className="rp-in"><PackFace prod={prod} /><span className="pk-sheen" /></span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // ---- Éclairs d'ouverture : Haki des rois (One Piece) ou foudre (Pokémon) ----
@@ -148,19 +201,29 @@ function Strike({ game }) {
   );
 }
 
-// ---- Carte révélée ----
-function Reveal({ x, state, isNew, value }) {
+// ---- Carte révélée : elle tourne sur elle-même, son dos passe par les couleurs de rareté jusqu'à la sienne,
+// un faisceau de lumière monte du sol pour les plus rares, puis elle se retourne, posée dans le décor ----
+const SPIN = [0.9, 1.15, 1.45, 1.9, 2.2, 2.6]; // durée de la rotation (s) selon le niveau
+function RevealCard({ x, isNew, value, onDone, shown }) {
   const lv = levelOf(x);
+  useEffect(() => {
+    if (shown) return;
+    const t = setTimeout(onDone, reduceMotion() ? 50 : SPIN[lv] * 1000);
+    return () => clearTimeout(t);
+  }, [shown]);
   return (
-    <div className={`rv lv-${lv} is-${state}`} style={{ '--lc': LV_COLOR[lv] }}>
-      {lv >= 2 && state === 'front' && <span className="rv-rays" aria-hidden="true" />}
-      <div className="rv-flip">
-        <div className="rv-back"><CardBack game={x.card.game} /><span className="rv-aura" /></div>
-        <div className="rv-front"><CardArt card={x.card} size="large" eager className={lv >= 2 ? 'live' : ''} tilt={false} /></div>
+    <div className={`rv2 lv-${lv}` + (shown ? ' is-front' : ' is-spin')} style={{ '--lc': LV_COLOR[lv], '--dur': SPIN[lv] + 's', '--turns': 1 + Math.min(3, lv) }}>
+      {lv >= 3 && <span className="rv2-beam" aria-hidden="true" />}
+      {lv >= 2 && shown && <span className="rv-rays" aria-hidden="true" />}
+      <span className="rv2-shadow" aria-hidden="true" />
+      <div className="rv2-card">
+        <div className="rv2-back"><CardBack game={x.card.game} /><span className="rv2-tint" /></div>
+        <div className="rv2-front"><CardArt card={x.card} size="large" eager className={lv >= 2 ? 'live' : ''} tilt={false} /><span className="rv2-light" /></div>
       </div>
-      {state === 'front' && lv >= 2 && <span className="rv-banner">{x.card.variant && /^Parallèle/.test(x.card.variant) ? 'Parallèle !' : (x.card.rarity || x.label) + ' !'}</span>}
-      {state === 'front' && (
-        <div className="rv-caption">
+      {shown && <div className="rv2-mirror" aria-hidden="true"><CardArt card={x.card} tilt={false} fx={0} /></div>}
+      {shown && lv >= 2 && <span className="rv-banner">{x.card.variant && /^Parallèle/.test(x.card.variant) ? 'Parallèle !' : (x.card.rarity || x.label) + ' !'}</span>}
+      {shown && (
+        <div className="rv2-caption">
           <b>{x.card.name}</b>
           <span>{x.card.number} · {rarLabel(x)}</span>
           <span className="rv-tags">{isNew ? <em className="new">Nouvelle</em> : <em className="dup">Déjà obtenue</em>}{value != null && <em className="val">{fmtEur(value)}</em>}</span>
@@ -208,11 +271,11 @@ export default function BoostersPage({ focus }) {
   const sel = useStore((s) => s.packs.sel?.[game]);
   const sound = useStore((s) => s.settings?.sound !== false);
   const admin = useStore((s) => !!s.admin);
-  const [phase, setPhase] = useState('pack'); // pack → ready → opening → reveal → summary
+  const [phase, setPhase] = useState('pack'); // pack → pick (cercle de boosters) → ready → opening → reveal → summary
   const [pack, setPack] = useState(null);     // { pulls, fresh:Set<index>, value }
   const [bulk, setBulk] = useState(null);
-  const [m, setM] = useState(0);
-  const [charging, setCharging] = useState(false);
+  const [m, setM] = useState(0); // carte en cours (0 = première)
+  const [spun, setSpun] = useState(false); // la carte en cours est-elle retournée ?
   const [noFunds, setNoFunds] = useState(false);
   const [odds, setOdds] = useState(false);
   const [gain, setGain] = useState(0);
@@ -264,13 +327,14 @@ export default function BoostersPage({ focus }) {
   };
 
   const openOne = useCallback(() => {
-    if (!prod || phase === 'opening' || phase === 'ready') return;
+    if (!prod || phase === 'opening' || phase === 'ready' || phase === 'pick') return;
     if (!spendCoins(game, PRICE.booster)) { setNoFunds(true); return; }
-    setNoFunds(false); setBulk(null); setPack(null); setM(0); setCharging(false);
+    setNoFunds(false); setBulk(null); setPack(null); setM(0); setSpun(false);
     setNonce((n) => n + 1); SFX.coin();
-    setPhase('ready');
+    setPhase('pick');
   }, [prod, phase, game]);
   const cancelReady = () => { refund(game, PRICE.booster); setPhase('pack'); };
+  const picked = () => { setPhase('ready'); };
   const tearOpen = useCallback(() => {
     if (!prod || phase !== 'ready') return;
     const pulls = openPack(prod);
@@ -299,28 +363,31 @@ export default function BoostersPage({ focus }) {
     if (top >= 2) { SFX.rare(top); later(() => burst(stageRef.current, top), 150); }
   };
 
+  // La carte en cours a fini de tourner : elle se montre
+  const revealed = useCallback(() => {
+    if (!pack || phase !== 'reveal') return;
+    const lv = levelOf(pack.pulls[m]);
+    setSpun(true); SFX.flip();
+    if (lv >= 2) { SFX.rare(lv); vibrate(lv >= 4 ? [60, 40, 120] : 30); later(() => burst(stageRef.current?.querySelector('.rv2-card'), lv), 60); }
+  }, [pack, phase, m]);
+  // Toucher l'écran : retourner tout de suite, ou faire tomber la carte au sol et passer à la suivante
   const next = useCallback(() => {
-    if (!pack || phase !== 'reveal' || charging) return;
-    if (m >= pack.pulls.length) { setPhase('summary'); SFX.success(); return; }
-    const x = pack.pulls[m], lv = levelOf(x);
-    const show = () => {
-      setCharging(false); setM((v) => v + 1); SFX.flip();
-      if (lv >= 2) { SFX.rare(lv); vibrate(lv >= 4 ? [60, 40, 120] : 30); later(() => burst(stageRef.current?.querySelector('.rv'), lv), 120); }
-    };
-    if (lv >= 2) { setCharging(true); SFX.charge(); later(show, 1000); } else show();
-  }, [pack, phase, charging, m]);
+    if (!pack || phase !== 'reveal') return;
+    if (!spun) { revealed(); return; }
+    if (m >= pack.pulls.length - 1) { setPhase('summary'); SFX.success(); return; }
+    setM((v) => v + 1); setSpun(false); SFX.whoosh();
+    if (levelOf(pack.pulls[m + 1]) >= 3) SFX.charge();
+  }, [pack, phase, spun, m, revealed]);
   useEffect(() => {
-    const f = (e) => { if ((e.key === ' ' || e.key === 'Enter') && phase === 'reveal' && !e.target.closest('button,a,input,select')) { e.preventDefault(); next(); } if (e.key === 'Escape' && phase === 'ready') cancelReady(); };
+    const f = (e) => { if ((e.key === ' ' || e.key === 'Enter') && phase === 'reveal' && !e.target.closest('button,a,input,select')) { e.preventDefault(); next(); } if (e.key === 'Escape' && (phase === 'ready' || phase === 'pick')) cancelReady(); };
     addEventListener('keydown', f); return () => removeEventListener('keydown', f);
   }, [next, phase]);
 
   if (!d.ready || !prod) return <div className="page"><Loading label="Préparation des boosters…" /></div>;
-  const shown = pack && m > 0 ? pack.pulls[m - 1] : null;
-  const upcoming = pack && m < pack.pulls.length ? pack.pulls[m] : null;
-  const left = pack ? pack.pulls.length - m : 0;
+  const current = pack ? pack.pulls[Math.min(m, pack.pulls.length - 1)] : null;
   const locked = coins < PRICE.booster;
-  const runValue = pack ? pullValue(pack.pulls.slice(0, m), d.P, d.fx) : 0;
-  const close = () => (phase === 'ready' ? cancelReady() : (setPhase('pack'), setPack(null), setBulk(null)));
+  const runValue = pack ? pullValue(pack.pulls.slice(0, m + (spun ? 1 : 0)), d.P, d.fx) : 0;
+  const close = () => (phase === 'ready' || phase === 'pick' ? cancelReady() : (setPhase('pack'), setPack(null), setBulk(null)));
   const actions = (again) => (
     <div className="pack-actions">
       <button className={'btn primary big' + (again ? ' pulse' : '')} disabled={locked} onClick={openOne}><span className="coin-ico">{cur.sym}</span>{again ? 'Ouvrir un autre booster' : 'Ouvrir un booster'} · {PRICE.booster}</button>
@@ -361,7 +428,7 @@ export default function BoostersPage({ focus }) {
       <section className={`pack-stage phase-${phase} ${game}` + (phase !== 'pack' ? ' focus' : '')} ref={stageRef}>
         {phase !== 'pack' && phase !== 'opening' && <button className="icon-btn focus-close" onClick={close} aria-label="Fermer"><Icon name="x" /></button>}
         {phase === 'opening' && <Strike key={nonce} game={game} />}
-        {pack && !bulk && (phase === 'reveal' || phase === 'summary') && <Floor key={nonce} pulls={phase === 'summary' ? pack.pulls : pack.pulls.slice(0, charging ? m : Math.max(0, m - 1))} total={pack.pulls.length} seed={nonce} />}
+        {pack && !bulk && (phase === 'reveal' || phase === 'summary') && <Floor key={nonce} pulls={phase === 'summary' ? pack.pulls : pack.pulls.slice(0, m)} total={pack.pulls.length} seed={nonce} />}
         {phase === 'pack' && (
           <div className="stage-idle">
             <Pack prod={prod} phase="pack" onPick={openOne} locked={locked} />
@@ -377,33 +444,31 @@ export default function BoostersPage({ focus }) {
             </div>
           </div>
         )}
+        {phase === 'pick' && (
+          <div className="focus-pick">
+            <p className="focus-title">Choisis ton booster</p>
+            <small className="pick-sub">{prod.name}</small>
+            <PackRing prod={prod} onChoose={picked} />
+            <p className="swipe-hint"><span className="swipe-hand" aria-hidden="true"><Icon name="hand" size={22} /></span>Fais tourner le cercle du doigt, puis touche un booster</p>
+          </div>
+        )}
         {(phase === 'ready' || phase === 'opening') && (
           <div className="focus-pack">
             <p className="focus-title">{phase === 'ready' ? prod.name : ' '}</p>
-            <Pack key={nonce} prod={prod} phase={phase} onOpen={tearOpen} />
+            <span className="pack-arrive"><Pack key={nonce} prod={prod} phase={phase} onOpen={tearOpen} /></span>
             <p className={'swipe-hint' + (phase === 'opening' ? ' gone' : '')}><span className="swipe-hand" aria-hidden="true"><Icon name="hand" size={22} /></span>Glisse ton doigt le long du haut du booster pour le déchirer</p>
             {phase === 'ready' && <button className="btn ghost small" onClick={tearOpen}>Ouvrir sans glisser</button>}
           </div>
         )}
 
-        {phase === 'reveal' && pack && (
-          <div className="reveal-zone">
+        {phase === 'reveal' && pack && current && (
+          <div className="reveal-zone v2" onClick={next} role="button" tabIndex={0} aria-label={spun ? (m < pack.pulls.length - 1 ? 'Carte suivante' : 'Voir le résumé') : 'Retourner la carte'}>
             <div className="rv-top">
-              <span className="rv-count" aria-live="polite">{m} / {pack.pulls.length}</span>
+              <span className="rv-count" aria-live="polite">{m + 1} / {pack.pulls.length}</span>
               <span className="rv-run">Valeur du tirage <Money value={runValue} /></span>
             </div>
-            <button className="rv-table" onClick={next} aria-label={upcoming ? `Retourner la carte ${m + 1} sur ${pack.pulls.length}` : 'Voir le résumé'}>
-              <span className="rv-slot">
-                {left > 0 && <span className="rv-deck" aria-hidden="true">{Array.from({ length: Math.min(6, left - (charging ? 1 : 0)) }, (_, i) => <i key={i} style={{ '--d': i }}><CardBack game={game} /></i>)}</span>}
-                {charging && upcoming ? <Reveal key={'c' + m} x={upcoming} state="charging" />
-                  : shown ? <Reveal key={'f' + m} x={shown} state="front" isNew={pack.fresh.has(m - 1)} value={eurOf(shown.card, d.P, d.fx)} />
-                  : <span className="rv-hint"><Icon name="hand" size={28} />Touche le paquet pour retourner la première carte</span>}
-              </span>
-            </button>
-            <div className="row center">
-              <button className="btn primary" onClick={next} disabled={charging}>{upcoming ? 'Carte suivante' : 'Voir le résumé'}<Icon name="arrow" size={18} /></button>
-              <button className="btn ghost" onClick={() => { setM(pack.pulls.length); setPhase('summary'); SFX.success(); }}>Tout révéler</button>
-            </div>
+            <RevealCard key={'c' + m} x={current} shown={spun} onDone={revealed} isNew={pack.fresh.has(m)} value={eurOf(current.card, d.P, d.fx)} />
+            <p className={'rv2-hint' + (spun ? ' on' : '')}>{spun ? (m < pack.pulls.length - 1 ? 'Touche pour la carte suivante' : 'Touche pour voir ton tirage') : ' '}</p>
           </div>
         )}
 

@@ -381,3 +381,98 @@ html.at-booster .topbar, html.at-booster .tabbar, html.at-booster .banner, html.
 [data-fx='lite'] .fl-card { animation-duration: .01s; }
 .pack-stage.focus > :not(.rv-floor):not(.focus-close) { position: relative; z-index: 2; }
 .pack-stage.focus .summary { padding: 22px clamp(14px, 3vw, 30px) 26px; margin: 46px 0 8px; border-radius: 26px; background: rgba(6, 8, 16, .82); border: 1px solid rgba(255, 255, 255, .12); box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+
+/* ---------- Cercle de boosters (choix du paquet) ---------- */
+.focus-pick { display: grid; justify-items: center; gap: 6px; width: 100%; }
+.pick-sub { color: rgba(255, 255, 255, .8); font-weight: 750; text-shadow: 0 2px 10px rgba(0, 0, 0, .9); }
+.pring { --pw: min(40vw, 190px, 26vh); --R: calc(var(--pw) * 1.85); position: relative; width: 100%; height: calc(var(--pw) * 1.65 * 1.38); margin: 12px 0 0; perspective: 1100px; perspective-origin: 50% 30%; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.pring:active { cursor: grabbing; }
+.pring-in { position: absolute; left: 50%; top: 4%; width: var(--pw); aspect-ratio: 63 / 104; margin-left: calc(var(--pw) / -2); transform-style: preserve-3d; transform: translateZ(calc(var(--R) * -1)) rotateY(var(--ang)); }
+.pring-pack { position: absolute; inset: 0; padding: 0; border: 0; background: none; cursor: pointer; transform-style: preserve-3d; backface-visibility: hidden; -webkit-backface-visibility: hidden; transform: rotateY(var(--a)) translateZ(var(--R)); -webkit-tap-highlight-color: transparent; }
+.rp-in { position: absolute; inset: 0; border-radius: 10px; overflow: hidden; box-shadow: 0 30px 50px -24px rgba(0, 0, 0, .9); transition: transform .5s cubic-bezier(.2, .8, .2, 1), filter .4s; filter: brightness(.72) saturate(.85); -webkit-box-reflect: below 10px linear-gradient(transparent 62%, rgba(255, 255, 255, .22)); }
+.pring-pack.front .rp-in { filter: none; transform: translateZ(26px) scale(1.04); }
+.pring-in.chosen .pring-pack:not(.picked) .rp-in { filter: brightness(.4) blur(1px); }
+.pring-pack.picked .rp-in { transform: translateZ(calc(var(--R) * .55)) scale(1.18); filter: brightness(1.15); transition-duration: .65s; }
+.pring-pack .pk-sheen { animation-duration: 3.6s; }
+.pack-arrive { display: block; animation: pack-arrive .55s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes pack-arrive { from { transform: scale(.82) translateY(30px); opacity: .4; } }
+
+/* ---------- Booster brillant, façon emballage métallisé (en gardant l'univers de chaque jeu) ---------- */
+.pf.gen { box-shadow: inset 0 0 2.6em rgba(0, 0, 0, .55), inset 0 .6em 1.2em rgba(255, 255, 255, .25); }
+.pf.gen::before { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background:
+  linear-gradient(100deg, transparent 8%, rgba(255, 255, 255, .28) 14%, transparent 22%, transparent 74%, rgba(255, 255, 255, .18) 80%, transparent 88%),
+  radial-gradient(120% 60% at 50% -10%, rgba(255, 255, 255, .35), transparent 60%),
+  radial-gradient(130% 70% at 50% 120%, rgba(0, 0, 0, .55), transparent 60%); }
+.pf.gen::after { content: ''; position: absolute; z-index: 1; left: -10%; right: -10%; top: 56%; height: 22%; transform: rotate(-12deg); background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--pb) 70%, transparent) 30%, color-mix(in srgb, var(--pb) 85%, #fff) 50%, color-mix(in srgb, var(--pb) 70%, transparent) 70%, transparent); opacity: .55; mix-blend-mode: screen; }
+.pf-crimp { height: 5.5%; background: linear-gradient(180deg, #f4f4f8, #9aa0ae 45%, #e9ebf2 60%, #7d8392); -webkit-mask: repeating-linear-gradient(90deg, #000 0 2px, rgba(0, 0, 0, .55) 2px 4px); mask: repeating-linear-gradient(90deg, #000 0 2px, rgba(0, 0, 0, .55) 2px 4px); }
+.pf-head { z-index: 3; } .pf-title { z-index: 3; } .pf-art { z-index: 2; } .pf-count { z-index: 3; }
+
+/* ---------- Révélation : la carte tourne, change de couleur, puis se retourne dans le décor ---------- */
+.reveal-zone.v2 { min-height: calc(100dvh - 40px); align-content: start; gap: 8px; cursor: pointer; -webkit-tap-highlight-color: transparent; outline: none; }
+.rv2 { --w: min(60vw, 300px, 40vh); position: relative; width: var(--w); margin-top: 4px; display: grid; justify-items: center; perspective: 1100px; }
+.rv2-card { position: relative; width: 100%; aspect-ratio: 63 / 88; transform-style: preserve-3d; z-index: 2; }
+.rv2-back, .rv2-front { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 4.5% / 3.2%; overflow: hidden; }
+.rv2-front { transform: rotateY(180deg); }
+.rv2-front .cart { width: 100%; }
+.rv2-tint { position: absolute; inset: 0; mix-blend-mode: color; opacity: .0; background: var(--lc); }
+.rv2.is-spin .rv2-card { animation: rv2-spin var(--dur) cubic-bezier(.45, .05, .35, 1) both; }
+.rv2.is-front .rv2-card { transform: rotateY(180deg); animation: rv2-land .5s cubic-bezier(.2, .8, .2, 1) both, rv2-float 4s ease-in-out .6s infinite; }
+@keyframes rv2-spin {
+  0% { transform: translateY(26vh) rotateY(0deg) rotateZ(-8deg) scale(.55); }
+  22% { transform: translateY(-2vh) rotateY(calc(var(--turns) * 90deg)) rotateZ(4deg) scale(1.02); }
+  100% { transform: translateY(0) rotateY(calc(var(--turns) * 360deg + 180deg)) rotateZ(0deg) scale(1); }
+}
+@keyframes rv2-land { from { transform: rotateY(180deg) scale(1.08); } }
+@keyframes rv2-float { 50% { transform: rotateY(180deg) translateY(-6px) rotateX(2deg); } }
+/* le dos passe par les couleurs de rareté jusqu'à celle de la carte */
+.rv2.is-spin .rv2-back { animation: rv2-glow var(--dur) linear both; }
+.rv2.is-spin .rv2-tint { animation: rv2-tint var(--dur) linear both; }
+.rv2.lv-0.is-spin .rv2-tint { animation-name: rv2-tint0; }
+.rv2.lv-1.is-spin .rv2-tint { animation-name: rv2-tint1; }
+.rv2.lv-2.is-spin .rv2-tint { animation-name: rv2-tint2; }
+.rv2.lv-3.is-spin .rv2-tint { animation-name: rv2-tint3; }
+.rv2.lv-4.is-spin .rv2-tint { animation-name: rv2-tint4; }
+.rv2.lv-5.is-spin .rv2-tint { animation-name: rv2-tint5; }
+@keyframes rv2-tint0 { to { opacity: 0; } }
+@keyframes rv2-tint1 { 0%, 30% { opacity: 0; } 70%, 100% { opacity: .55; background: #7cc4ff; } }
+@keyframes rv2-tint2 { 0%, 20% { opacity: 0; } 45% { opacity: .55; background: #7cc4ff; } 75%, 100% { opacity: .6; background: #b48bff; } }
+@keyframes rv2-tint3 { 0%, 15% { opacity: 0; } 35% { opacity: .55; background: #7cc4ff; } 55% { opacity: .6; background: #b48bff; } 80%, 100% { opacity: .75; background: #ffd76a; } }
+@keyframes rv2-tint4 { 0%, 12% { opacity: 0; } 30% { opacity: .55; background: #7cc4ff; } 48% { opacity: .6; background: #b48bff; } 66% { opacity: .7; background: #ffd76a; } 85%, 100% { opacity: .75; background: #ff6b9a; } }
+@keyframes rv2-tint5 { 0%, 10% { opacity: 0; } 25% { opacity: .55; background: #7cc4ff; } 40% { opacity: .6; background: #b48bff; } 55% { opacity: .7; background: #ffd76a; } 70% { opacity: .75; background: #ff6b9a; } 85%, 100% { opacity: .5; background: #fff; } }
+@keyframes rv2-glow { 0% { box-shadow: 0 0 0 rgba(0, 0, 0, 0); } 100% { box-shadow: 0 0 0 2px var(--lc), 0 0 36px var(--lc); } }
+.rv2.lv-0 .rv2-back { animation-name: none; }
+/* faisceau de lumière qui monte du sol (cartes les plus rares) */
+.rv2-beam { position: absolute; z-index: 0; left: 50%; bottom: -18vh; width: 120%; height: 120vh; transform: translateX(-50%); pointer-events: none; background: linear-gradient(0deg, var(--lc) 0%, color-mix(in srgb, var(--lc) 60%, transparent) 30%, transparent 75%); -webkit-mask: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent); mask: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent); opacity: 0; mix-blend-mode: screen; animation: rv2-beam calc(var(--dur) + .6s) ease-out both; }
+@keyframes rv2-beam { 0%, 45% { opacity: 0; transform: translateX(-50%) scaleX(.2); } 75% { opacity: .9; transform: translateX(-50%) scaleX(1); } 100% { opacity: .35; transform: translateX(-50%) scaleX(.85); } }
+.rv2.is-front .rv2-beam { animation: none; opacity: .3; }
+/* intégrée au décor : ombre portée, reflet au sol, lumière du lieu */
+.rv2-shadow { position: absolute; z-index: 1; left: 12%; right: 12%; top: calc(var(--w) * 88 / 63 + 2px); height: 22px; border-radius: 50%; background: radial-gradient(closest-side, rgba(0, 0, 0, .55), transparent); filter: blur(3px); }
+.rv2.is-front .rv2-shadow { animation: rv2-shadow 4s ease-in-out .6s infinite; }
+@keyframes rv2-shadow { 50% { transform: scaleX(.88); opacity: .75; } }
+.rv2-mirror { position: absolute; z-index: 1; top: calc(var(--w) * 88 / 63 + 6px); left: 0; width: 100%; transform: scaleY(-.42); transform-origin: top; opacity: .22; filter: blur(1.5px); -webkit-mask: linear-gradient(0deg, transparent 30%, #000); mask: linear-gradient(0deg, transparent 30%, #000); pointer-events: none; animation: fade .6s ease both; }
+.rv2-mirror .cart { width: 100%; }
+.rv2-light { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: soft-light; }
+.pack-stage.onepiece .rv2-light { background: linear-gradient(160deg, rgba(255, 214, 120, .55), transparent 45%, rgba(120, 60, 0, .35)); }
+.pack-stage.pokemon .rv2-light { background: linear-gradient(160deg, rgba(255, 255, 230, .55), transparent 45%, rgba(20, 90, 60, .3)); }
+/* lueur du lieu sur la face (pas de filtre sur la carte elle-même : il aplatirait la 3D et montrerait le dos) */
+.pack-stage.onepiece .rv2.is-front .rv2-front { box-shadow: 0 0 34px -4px rgba(255, 190, 80, .5), 0 30px 50px -24px rgba(0, 0, 0, .8); }
+.pack-stage.pokemon .rv2.is-front .rv2-front { box-shadow: 0 0 34px -4px rgba(210, 255, 225, .45), 0 30px 50px -24px rgba(0, 0, 0, .8); }
+.rv2.is-front.lv-2 .rv2-front, .rv2.is-front.lv-3 .rv2-front, .rv2.is-front.lv-4 .rv2-front, .rv2.is-front.lv-5 .rv2-front { box-shadow: 0 0 0 2px var(--lc), 0 0 40px -4px var(--lc); }
+.rv2 .rv-rays { top: 40%; }
+.rv2 .rv-banner { top: -14px; }
+/* légende posée sur le décor, sans encadré */
+.rv2-caption { position: relative; z-index: 3; display: grid; justify-items: center; gap: 3px; margin-top: calc(var(--w) * .26); text-align: center; animation: plinth-in .5s var(--ease) .2s both; }
+.rv2-caption b { font: 800 clamp(18px, 4.8vw, 24px) var(--display); color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .55), 0 0 18px rgba(0, 0, 0, .8); }
+.rv2-caption > span { color: rgba(255, 255, 255, .9); font-size: 13.5px; font-weight: 750; text-shadow: 0 1px 8px rgba(0, 0, 0, .9); }
+.rv2-caption .rv-tags em { box-shadow: 0 4px 14px -4px rgba(0, 0, 0, .8); }
+.rv2-caption .rv-tags .dup { background: rgba(10, 12, 20, .72); color: #e2e6f0; }
+.rv2-caption .rv-tags .val { background: rgba(10, 12, 20, .72); }
+.rv2-hint { position: fixed; z-index: 3; left: 0; right: 0; bottom: calc(22vh + env(safe-area-inset-bottom, 0px)); margin: 0; text-align: center; font-weight: 800; font-size: 13.5px; color: #fff; text-shadow: 0 2px 10px rgba(0, 0, 0, .95); opacity: 0; transition: opacity .4s; pointer-events: none; }
+.rv2-hint.on { opacity: .9; animation: rv2-hint 2s ease-in-out .8s infinite; }
+@keyframes rv2-hint { 50% { opacity: .45; } }
+
+/* La première carte sort du booster */
+.em-one { position: absolute; left: 50%; top: 4%; width: 74%; aspect-ratio: 63 / 88; margin-left: -37%; z-index: -1; opacity: 0; animation: em-one 2s cubic-bezier(.3, 0, .2, 1) .45s both; }
+@keyframes em-one { 0% { opacity: 1; transform: translateY(30%); } 45% { opacity: 1; transform: translateY(-62%) rotate(-3deg); } 70% { transform: translateY(-58%) rotateY(70deg); } 100% { opacity: 1; transform: translateY(-20%) rotateY(180deg) scale(1.1); } }
+.emerge { z-index: auto; }
+@media (prefers-reduced-motion: reduce) { .rv2.is-spin .rv2-card, .rv2-beam, .rv2.is-front .rv2-card { animation-duration: .01s; } }
