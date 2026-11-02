@@ -170,6 +170,35 @@ function Reveal({ x, state, isNew, value }) {
   );
 }
 
+// Cartes déjà vues : elles tombent sur le sol du décor et y restent, en tas, jusqu'au prochain booster
+function Floor({ pulls, total, seed }) {
+  const rr = (n) => { const v = Math.sin(n * 12.9898 + seed * 78.233) * 43758.5453; return v - Math.floor(v); };
+  const before = useRef(pulls.length);
+  const base = useRef(0);
+  if (pulls.length < before.current) before.current = pulls.length;
+  if (pulls.length > before.current) { base.current = before.current; before.current = pulls.length; }
+  const added = pulls.length - base.current;
+  useEffect(() => {
+    if (added <= 0) return;
+    const ts = Array.from({ length: Math.min(3, added) }, (_, k) => setTimeout(() => SFX.place(), 520 + k * 110));
+    return () => ts.forEach(clearTimeout);
+  }, [pulls.length]);
+  return (
+    <div className="rv-floor" aria-hidden="true">
+      {pulls.map((x, i) => {
+        const fx = ((i + 0.5) / total - 0.5) * 0.78 + (rr(i) - 0.5) * 0.08;
+        const fy = (i % 2 ? 0.16 : -0.1) + (rr(i + 50) - 0.5) * 0.14;
+        const lv = levelOf(x);
+        return (
+          <span key={i} className={'fl-card lv-' + lv} style={{ '--fx': fx.toFixed(3), '--fy': fy.toFixed(3), '--rz': ((rr(i + 99) - 0.5) * 56).toFixed(1) + 'deg', '--delay': Math.max(0, i - base.current) * 110 + 'ms', '--lc': LV_COLOR[lv], zIndex: i + 1 }}>
+            <CardArt card={x.card} tilt={false} fx={0} />
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function BoostersPage({ focus }) {
   const d = useData();
   const game = useUniverse();
@@ -254,7 +283,8 @@ export default function BoostersPage({ focus }) {
   useEffect(() => {
     const on = phase !== 'pack';
     document.body.classList.toggle('modal-open', on);
-    return () => document.body.classList.remove('modal-open');
+    document.documentElement.classList.toggle('at-booster', on); // plein écran : le décor prend tout l'écran
+    return () => { document.body.classList.remove('modal-open'); document.documentElement.classList.remove('at-booster'); };
   }, [phase]);
 
   const openDisplay = () => {
@@ -327,10 +357,11 @@ export default function BoostersPage({ focus }) {
         </div>
       )}
 
-      {phase !== 'pack' && <div className={'focus-bg ' + game} aria-hidden="true" />}
+      {phase !== 'pack' && <div className={'focus-bg focus-scene ' + game} style={{ backgroundImage: `url(img/booster/${game}.webp)` }} aria-hidden="true" />}
       <section className={`pack-stage phase-${phase} ${game}` + (phase !== 'pack' ? ' focus' : '')} ref={stageRef}>
         {phase !== 'pack' && phase !== 'opening' && <button className="icon-btn focus-close" onClick={close} aria-label="Fermer"><Icon name="x" /></button>}
         {phase === 'opening' && <Strike key={nonce} game={game} />}
+        {pack && !bulk && (phase === 'reveal' || phase === 'summary') && <Floor key={nonce} pulls={phase === 'summary' ? pack.pulls : pack.pulls.slice(0, charging ? m : Math.max(0, m - 1))} total={pack.pulls.length} seed={nonce} />}
         {phase === 'pack' && (
           <div className="stage-idle">
             <Pack prod={prod} phase="pack" onPick={openOne} locked={locked} />
@@ -372,9 +403,6 @@ export default function BoostersPage({ focus }) {
             <div className="row center">
               <button className="btn primary" onClick={next} disabled={charging}>{upcoming ? 'Carte suivante' : 'Voir le résumé'}<Icon name="arrow" size={18} /></button>
               <button className="btn ghost" onClick={() => { setM(pack.pulls.length); setPhase('summary'); SFX.success(); }}>Tout révéler</button>
-            </div>
-            <div className="rv-strip" aria-label="Cartes déjà révélées">
-              {pack.pulls.slice(0, Math.max(0, m - 1)).map((x, i) => <span key={i} className={'strip-card lv-' + levelOf(x)} style={{ '--lc': LV_COLOR[levelOf(x)] }} title={x.card.name + ' ' + x.card.number}><CardArt card={x.card} tilt={false} fx={0} /></span>)}
             </div>
           </div>
         )}
