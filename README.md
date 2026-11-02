@@ -29,7 +29,8 @@ En plus dans Kirakai :
 - ce qui monte et ce qui baisse dans ma collection
 - quêtes du jour et série de jours de visite, récompensées en Berrys et en Pokéballs
 - profils publics avec vitrine de cartes et classement des plus belles collections (`#/collectionneurs`, `#/joueur/<pseudo>`)
-- section « Jouer » : parties en mode bac à sable sur un tapis de jeu, avec de vrais decks officiels (102 decks
+- section « Jouer » : parties en mode bac à sable sur un tapis de jeu en plein écran façon jeu mobile (main en éventail,
+  cartes à glisser du doigt, barres de PV, énergies, DON!!, animations), avec de vrais decks officiels (102 decks
   recommandés One Piece du site officiel, 186 decks à thème Pokémon), seul ou à deux sur le même appareil :
   mélange, pioche, mains de départ, Vies, Récompenses, DON!!, dégâts, énergies, évolutions, pile ou face, journal
   et annulation ; les règles sont appliquées par les joueurs (`scripts/build-decks.mjs` → `db/decks/`)

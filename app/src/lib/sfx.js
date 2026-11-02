@@ -30,6 +30,12 @@ export const SFX = {
   charge() { const c = ac(); if (!c) return; const o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(220, c.currentTime); o.frequency.exponentialRampToValueAtTime(880, c.currentTime + 0.8); g.gain.setValueAtTime(1e-4, c.currentTime); g.gain.exponentialRampToValueAtTime(0.09, c.currentTime + 0.6); g.gain.exponentialRampToValueAtTime(1e-4, c.currentTime + 0.85); o.connect(g).connect(c.destination); o.start(); o.stop(c.currentTime + 0.9); },
   rare(lv) { const n = [523.25, 659.25, 783.99, 1046.5, 1318.5, 1567.98, 2093]; for (let i = 0; i < Math.min(n.length, 2 + lv); i++) tone(n[i], i * 0.07, 0.5, 'triangle', 0.1); if (lv >= 3) tone(2093, 0.5, 0.9, 'sine', 0.06); },
   success() { [659.25, 830.61, 987.77, 1318.5].forEach((f, i) => tone(f, i * 0.06, 0.35, 'triangle', 0.07)); },
+  // Jouer : poser une carte, piocher, coup porté, K.O., nouveau tour
+  place() { noise(0.12, { from: 300, to: 160, type: 'lowpass', vol: 0.5, decay: 3 }); tone(140, 0, 0.12, 'sine', 0.12); },
+  draw() { noise(0.16, { from: 2400, to: 5200, type: 'highpass', vol: 0.12, decay: 2 }); },
+  hit() { noise(0.22, { from: 700, to: 200, type: 'lowpass', vol: 0.55, decay: 2.4 }); tone(110, 0, 0.18, 'square', 0.06); },
+  ko() { noise(0.5, { from: 1200, to: 120, type: 'lowpass', vol: 0.45, decay: 1.6 }); [392, 311.13, 233.08].forEach((f, i) => tone(f, i * 0.09, 0.3, 'sawtooth', 0.04)); },
+  turn() { [523.25, 783.99].forEach((f, i) => tone(f, i * 0.08, 0.3, 'triangle', 0.07)); },
 };
 export const vibrate = (p) => { try { navigator.vibrate?.(p); } catch {} };
 
